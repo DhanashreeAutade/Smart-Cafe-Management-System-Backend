@@ -13,8 +13,14 @@ exports.createRole = async (req, res) => {
 // GET ALL ROLES
 exports.getAllRoles = async (req, res) => {
     try {
-        const roles = await roleService.getAllRoles();
-        res.json(roles);
+        const { page, limit, search } = req.query;
+
+        const result = await roleService.getAllRoles({
+            page,
+            limit,
+            search
+        }); res.json(result);
+
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -22,7 +28,7 @@ exports.getAllRoles = async (req, res) => {
 
 exports.deleteRole = async (req, res) => {
     try {
-        const roleName = req.query.roleName; 
+        const roleName = req.query.roleName;
 
         const role = await roleService.deleteRole(roleName);
         res.json(role);
