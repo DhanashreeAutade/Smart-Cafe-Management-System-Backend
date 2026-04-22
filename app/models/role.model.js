@@ -1,17 +1,12 @@
 const mongoose = require('mongoose');
 
 const roleSchema = new mongoose.Schema({
-    // roleId: {
-    //     type: Number,
-    //     unique: true
-    // },
     roleName: {
         type: String,
         required: true,
-        enum: ['admin', 'customer', 'staff']
+        unique: true, // 
     },
     description: String
-},
-    { timestamps: true });
+}, { timestamps: true });
 
 module.exports = mongoose.model('Role', roleSchema);
