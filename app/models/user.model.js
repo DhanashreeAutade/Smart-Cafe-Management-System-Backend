@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true, 
         enum: ['admin', 'customer', 'staff']
+    },
+    password: {
+        type: String,
+        required: true
     }
 }, { timestamps: true });
 
