@@ -6,7 +6,12 @@ const roleSchema = new mongoose.Schema({
         required: true,
         unique: true, // 
     },
-    description: String
+    description: String,
+
+    //  for reset password
+    resetToken: String,
+    resetTokenExpiry: Date
+    
 }, { timestamps: true });
 
 module.exports = mongoose.model('Role', roleSchema);

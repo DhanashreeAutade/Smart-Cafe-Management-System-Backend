@@ -1,27 +1,33 @@
 const User = require('../models/user.model.js');
+const bcrypt = require('bcryptjs');
 
 
-// CREATE USER
-
+// CREATE USER (Registration)
 exports.createUser = async (data) => {
-    const { name, email, city, state, roleName } = data;
+    const { name, email, city, state, roleName , password, phone } = data;
 
     // validation
-    if (!name || !email || !city || !state || !roleName) {
+    if (!name || !email || !city || !state || !password || !phone) {
         throw new Error('All fields are required');
     }
+
     // check unique email
     const existingUser = await User.findOne({ email });
     if (existingUser) {
         throw new Error('Email already exists');
     }
 
+    // hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = new User({
         name,
         email,
         city,
         state,
-        roleName
+        roleName,
+        password: hashedPassword,
+        phone
     });
 
     return await user.save();
@@ -84,24 +90,26 @@ exports.getUserById = async (id) => {
 
 
 
-// UPDATE USER BY ID
-exports.updateUserById = async (id, data) => {
-    if (!id) {
-        throw new Error('User ID is required');
+// UPDATE USER BY EMAIL (email cannot be changed)
+exports.updateUserByEmail = async (email, data) => {
+    if (!email) {
+        throw new Error('Email is required');
     }
 
-    // if email is being updated → check uniqueness
+    //  prevent email update
     if (data.email) {
-        const existingUser = await User.findOne({ email: data.email });
-        if (existingUser && existingUser._id.toString() !== id) {
-            throw new Error('Email already exists');
-        }
+        throw new Error('Email cannot be changed');
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-        id,
-        { $set: data },
-        { new: true } // return updated document
+    // optional: hash password if updated
+    if (data.password) {
+        data.password = await bcrypt.hash(data.password, 10);
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+        { email },        // find by email
+        { $set: data },   // update fields
+        { new: true }
     );
 
     if (!updatedUser) {
@@ -110,7 +118,6 @@ exports.updateUserById = async (id, data) => {
 
     return updatedUser;
 };
-
 
 
 // DELETE USER BY ID
@@ -129,4 +136,23 @@ exports.deleteUserById = async (id) => {
         message: 'User deleted successfully',
         deletedUser
     };
+};
+
+exports.resetPassword = async ({ email, newPassword }) => {
+    if (!email || !newPassword) {
+        throw new Error('Email and new password are required');
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    // hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    return { message: 'Password updated successfully' };
 };

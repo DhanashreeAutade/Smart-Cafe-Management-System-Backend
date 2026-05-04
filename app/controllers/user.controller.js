@@ -72,3 +72,12 @@ exports.deleteUser = async (req, res) => {
         res.status(404).json({ error: err.message });
     }
 };
+
+exports.resetPassword = async (req, res) => {
+    try {
+        const result = await userService.resetPassword(req.body);
+        res.json(result);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};

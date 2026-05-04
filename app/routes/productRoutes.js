@@ -3,6 +3,9 @@ const router = express.Router();
 const multer = require('multer');
 const upload = multer(); // memory storage
 const productController = require('../controllers/product.controller.js');
+const authMiddleware = require('../middleware/auth.middleware.js');
+
+router.use(authMiddleware.authenticateToken);
 
 // CREATE PRODUCT
 router.post('/createproduct', upload.single('image'), productController.createProduct);
