@@ -26,6 +26,14 @@ const productSchema = new mongoose.Schema({
         ref: 'Category',
         required: true
     },
+    emoji: {
+      type: String,
+      default: '☕'
+    },
+    tags: {
+      type: [String],
+      default: []
+    },
     stock: {
         type: Number,
         default: 0,

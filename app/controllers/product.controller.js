@@ -1,10 +1,22 @@
 const productService = require('../services/product.service.js');
 
+const getFullImageUrl = (req, imagePath) => {
+    if (!imagePath) return null;
+    return `${req.protocol}://${req.get('host')}${imagePath}`;
+};
+
+const normalizeProductImage = (req, product) => {
+    if (!product) return product;
+    const normalized = product.toObject ? product.toObject() : { ...product };
+    normalized.image = getFullImageUrl(req, normalized.image);
+    return normalized;
+};
+
 // CREATE PRODUCT
 exports.createProduct = async (req, res) => {
     try {
         const product = await productService.createProduct(req.body, req.file);
-        res.status(201).json(product);
+        res.status(201).json(normalizeProductImage(req, product));
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
@@ -13,8 +25,8 @@ exports.createProduct = async (req, res) => {
 // GET ALL PRODUCTS (Pagination + Search)
 exports.getAllProducts = async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 5;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = req.query.limit ? parseInt(req.query.limit) : 0;
         const search = req.query.search || '';
 
         const result = await productService.getAllProducts({
@@ -23,7 +35,8 @@ exports.getAllProducts = async (req, res) => {
             search
         });
 
-        res.json(result);
+        const products = result.products.map(product => normalizeProductImage(req, product));
+        res.json({ ...result, products });
     } catch (err) {
         res.status(404).json({ error: err.message });
     }
@@ -36,7 +49,7 @@ exports.getProductByName = async (req, res) => {
 
         const product = await productService.getProductByName(name);
 
-        res.json(product);
+        res.json(normalizeProductImage(req, product));
     } catch (err) {
         res.status(404).json({ error: err.message });
     }
@@ -49,7 +62,7 @@ exports.updateProductByName = async (req, res) => {
 
         const updatedProduct = await productService.updateProductByName(name, req.body, req.file);
 
-        res.json(updatedProduct);
+        res.json(normalizeProductImage(req, updatedProduct));
     } catch (err) {
         res.status(404).json({ error: err.message });
     }

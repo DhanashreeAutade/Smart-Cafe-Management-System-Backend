@@ -4,6 +4,14 @@ const jwt = require('jsonwebtoken');
 const config = require('../../config/config');
 const crypto = require('crypto');
 
+exports.generateAccessToken = (payload) => {
+    return jwt.sign(payload, config.JWT_SECRET, { expiresIn: '1h' });
+};
+
+exports.getPayloadFromToken = (token) => {
+    return jwt.verify(token, config.JWT_SECRET);
+};
+
 exports.loginUser = async (data) => {
     const { email, password } = data;
 
@@ -21,12 +29,7 @@ exports.loginUser = async (data) => {
         throw new Error('Invalid credentials');
     }
 
-    
-    const token = jwt.sign(
-        { id: user._id, roleName: user.roleName },
-        config.JWT_SECRET,
-        { expiresIn: '1h' }
-    );
+    const token = exports.generateAccessToken({ id: user._id, roleName: user.roleName });
 
     return { message: 'Login successful', token, user: { id: user._id, name: user.name, roleName: user.roleName } };
 };

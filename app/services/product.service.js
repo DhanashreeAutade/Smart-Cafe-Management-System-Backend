@@ -5,7 +5,7 @@ const path = require('path');
 
 // CREATE PRODUCT
 exports.createProduct = async (body, file) => {
-    const { name, price, description, category } = body;
+    const { name, price, description, category, emoji, tags } = body;
 
     if (!name || !price || !description || !category) {
         throw new Error('Name, price, description, and category are required');
@@ -14,25 +14,41 @@ exports.createProduct = async (body, file) => {
     let imagePath = null;
     if (file) {
         const uploadDir = path.join(__dirname, '../uploads');
+    
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
-        const uniqueName = Date.now() + '-' + file.originalname;
+    
+        const safeFileName = file.originalname.replace(/\s+/g, '-');
+        const uniqueName = Date.now() + '-' + safeFileName;
+
         const savedPath = path.join(uploadDir, uniqueName);
         fs.writeFileSync(savedPath, file.buffer);
+
         imagePath = `/uploads/${uniqueName}`;
     }
-    
+    // Convert tags to array if frontend sends a string
+    let parsedTags = [];
+    if (Array.isArray(tags)) {
+        parsedTags = tags;
+    } else if (typeof tags === 'string') {
+        parsedTags = tags
+            .split(',')
+            .map(tag => tag.trim())
+            .filter(Boolean);
+    }
     const product = new Product({
         name,
         price,
         description,
         category,
+        emoji: emoji || '☕',
+        tags: parsedTags,
         image: imagePath
     });
 
     await product.save();
-    
+
     // Add product to category
     await Category.findByIdAndUpdate(category, { $addToSet: { products: product._id } });
 
@@ -41,21 +57,24 @@ exports.createProduct = async (body, file) => {
 
 // GET ALL PRODUCTS (Pagination + Search)
 exports.getAllProducts = async ({ page, limit, search }) => {
-    const skip = (page - 1) * limit;
     const query = search ? { name: { $regex: search, $options: 'i' } } : {};
-
-    const products = await Product.find(query)
+    const productsQuery = Product.find(query)
         .populate('category', 'name')
-        .skip(skip)
-        .limit(limit)
         .sort({ createdAt: -1 });
+
+    if (limit > 0) {
+        const skip = (page - 1) * limit;
+        productsQuery.skip(skip).limit(limit);
+    }
+
+    const products = await productsQuery;
     const total = await Product.countDocuments(query);
 
     return {
         products,
         total,
         page,
-        pages: Math.ceil(total / limit)
+        pages: limit > 0 ? Math.ceil(total / limit) : 1
     };
 };
 
@@ -85,12 +104,12 @@ exports.updateProductByName = async (name, body, file) => {
         if (!categoryExists) {
             throw new Error('Category not found');
         }
-        
+
         // Remove from old category
         await Category.findByIdAndUpdate(product.category, { $pull: { products: product._id } });
-        
+
         product.category = category;
-        
+
         // Add to new category
         await Category.findByIdAndUpdate(category, { $addToSet: { products: product._id } });
     }
@@ -101,7 +120,8 @@ exports.updateProductByName = async (name, body, file) => {
 
     if (file) {
         if (product.image) {
-            const oldImagePath = path.join(__dirname, '..', product.image);
+            const relativeOld = product.image.replace(/^\//, '');
+            const oldImagePath = path.join(__dirname, '..', relativeOld);
             if (fs.existsSync(oldImagePath)) {
                 fs.unlinkSync(oldImagePath);
             }
@@ -110,7 +130,8 @@ exports.updateProductByName = async (name, body, file) => {
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
-        const uniqueName = Date.now() + '-' + file.originalname;
+        const safeFileName = file.originalname.replace(/\s+/g, '-');
+        const uniqueName = Date.now() + '-' + safeFileName;
         const newImagePath = path.join(uploadDir, uniqueName);
         fs.writeFileSync(newImagePath, file.buffer);
         product.image = `/uploads/${uniqueName}`;
@@ -128,7 +149,8 @@ exports.deleteProductByName = async (name) => {
     }
 
     if (product.image) {
-        const imagePath = path.join(__dirname, '..', product.image);
+        const relativeImage = product.image.replace(/^\//, '');
+        const imagePath = path.join(__dirname, '..', relativeImage);
         if (fs.existsSync(imagePath)) {
             fs.unlinkSync(imagePath);
         }
